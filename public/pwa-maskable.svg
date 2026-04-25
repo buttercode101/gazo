@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="TankUp maskable icon">
+  <rect width="512" height="512" fill="#0A0A0A"/>
+  <circle cx="256" cy="256" r="176" fill="#FF6200"/>
+  <path d="M256 122c-54 69-108 115-108 176 0 60 48 108 108 108s108-48 108-108c0-61-54-107-108-176Z" fill="#fff"/>
+  <circle cx="256" cy="286" r="36" fill="#FF6200"/>
+</svg>

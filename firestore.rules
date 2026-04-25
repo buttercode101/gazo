@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    match /{document=**} { allow read, write: if false; }
+
+    match /stations/{stationId} {
+      allow read: if true;
+
+      allow create: if isSignedIn()
+        && isValidId(stationId)
+        && incoming().keys().hasAll(['name', 'address', 'lat', 'lng', 'reports_count'])
+        && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
+        && incoming().address is string && incoming().address.size() > 0 && incoming().address.size() <= 200
+        && incoming().lat is number
+        && incoming().lng is number
+        && incoming().reports_count is number && incoming().reports_count >= 0;
+
+      allow update: if isSignedIn()
+        && isValidId(stationId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['diesel_price', 'petrol_price', 'last_updated', 'reports_count', 'last_reporter_uid', 'latest_image_url'])
+        && (!('diesel_price' in incoming()) || incoming().diesel_price == null || (incoming().diesel_price is number && incoming().diesel_price >= 20 && incoming().diesel_price <= 29))
+        && (!('petrol_price' in incoming()) || incoming().petrol_price == null || (incoming().petrol_price is number && incoming().petrol_price >= 20 && incoming().petrol_price <= 29))
+        && incoming().last_updated is number
+        && incoming().reports_count is number && incoming().reports_count >= existing().reports_count
+        && (!('last_reporter_uid' in incoming()) || incoming().last_reporter_uid == request.auth.uid)
+        && (!('latest_image_url' in incoming()) || incoming().latest_image_url is string);
+    }
+
+    match /price_reports/{reportId} {
+       allow read: if true;
+       allow create: if isSignedIn()
+         && isValidId(reportId)
+         && incoming().keys().hasAll(['station_id', 'fuel_type', 'price', 'timestamp', 'reporter_uid'])
+         && incoming().station_id is string && incoming().station_id.size() <= 128
+         && incoming().fuel_type in ['diesel', 'petrol']
+         && incoming().price is number && incoming().price >= 20 && incoming().price <= 29
+         && incoming().timestamp is number
+         && incoming().reporter_uid == request.auth.uid;
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && isValidId(reviewId)
+        && incoming().keys().hasAll(['station_id', 'user_id', 'user_name', 'rating', 'text', 'timestamp'])
+        && incoming().station_id is string && incoming().station_id.size() <= 128
+        && incoming().user_id == request.auth.uid
+        && incoming().user_name is string && incoming().user_name.size() > 0 && incoming().user_name.size() <= 80
+        && incoming().rating is number && incoming().rating >= 1 && incoming().rating <= 5
+        && incoming().text is string && incoming().text.size() > 0 && incoming().text.size() <= 1000
+        && incoming().timestamp is number;
+    }
+  }
+}

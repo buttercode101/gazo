@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="TankUp touch icon">
+  <rect width="180" height="180" rx="40" fill="#0A0A0A"/>
+  <path d="M90 26C69 53 48 70 48 95a42 42 0 1 0 84 0c0-25-21-42-42-69Z" fill="#FF6200"/>
+  <circle cx="90" cy="102" r="14" fill="#fff"/>
+</svg>

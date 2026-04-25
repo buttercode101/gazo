@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "Station": {
+      "title": "Station",
+      "description": "A fuel station with its current prices.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "diesel_price": { "type": "number", "description": "Price per liter or null" },
+        "petrol_price": { "type": "number", "description": "Price per liter or null" },
+        "last_updated": { "type": "number" },
+        "reports_count": { "type": "number" },
+        "last_reporter_uid": { "type": "string" }
+      },
+      "required": ["name", "address", "lat", "lng", "reports_count"]
+    },
+    "PriceReport": {
+      "title": "PriceReport",
+      "description": "An individual price report from a user for a station.",
+      "type": "object",
+      "properties": {
+        "station_id": { "type": "string" },
+        "fuel_type": { "type": "string", "enum": ["diesel", "petrol"] },
+        "price": { "type": "number" },
+        "timestamp": { "type": "number" },
+        "reporter_uid": { "type": "string" }
+      },
+      "required": ["station_id", "fuel_type", "price", "timestamp", "reporter_uid"]
+    }
+  },
+  "firestore": {
+    "/stations/{stationId}": {
+      "schema": { "$ref": "#/entities/Station" },
+      "description": "List of global fuel stations with aggregated latest prices."
+    },
+    "/price_reports/{reportId}": {
+      "schema": { "$ref": "#/entities/PriceReport" },
+      "description": "Append-only log of individual price submissions."
+    }
+  }
+}

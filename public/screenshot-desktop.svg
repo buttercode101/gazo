@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1728 1117" role="img" aria-label="TankUp desktop screenshot placeholder">
+  <rect width="1728" height="1117" fill="#070B12"/>
+  <rect x="40" y="30" width="1648" height="94" rx="24" fill="#0D1320" stroke="#ffffff22"/>
+  <text x="92" y="89" fill="#fff" font-size="42" font-family="Arial, sans-serif" font-weight="700">TankUp</text>
+  <rect x="40" y="150" width="520" height="927" rx="36" fill="#0D1421" stroke="#ffffff22"/>
+  <text x="82" y="220" fill="#FF6200" font-size="34" font-family="Arial, sans-serif" font-weight="700">Live fuel board</text>
+  <rect x="590" y="150" width="1098" height="927" rx="36" fill="#101a2a" stroke="#ffffff22"/>
+  <circle cx="980" cy="420" r="20" fill="#FF6200"/>
+  <circle cx="1180" cy="600" r="20" fill="#2f89ff"/>
+  <circle cx="1400" cy="500" r="20" fill="#22c55e"/>
+</svg>

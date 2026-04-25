@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist Variable", "Geist", ui-sans-serif, system-ui, sans-serif;
+  --color-brand-500: #FF6200;
+  --color-brand-600: #E65800;
+
+  --color-background: #0A0A0A;
+  --color-card: #121212;
+  --color-card-foreground: #FAFAFA;
+  --color-border: #27272A;
+  
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 23 100% 50%; /* #FF6200 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 23 100% 50%;
+    --radius: 1rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    background-color: #0A0A0A;
+    color: #FFFFFF;
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Leaflet dark mode overrides & Geometric Balance */
+.leaflet-container {
+  background: #0F0F0F !important;
+  font-family: var(--font-sans) !important;
+  z-index: 0 !important; /* Keep under shadcn/framer elements */
+}
+
+.map-surface {
+  filter: saturate(1.04) contrast(1.02);
+}
+
+/* Geometric Grid Overlay - we simulate this over the map by adding a pointer-events-none layer over it in App.tsx */
+
+.leaflet-layer,
+.leaflet-control-zoom-in,
+.leaflet-control-zoom-out,
+.leaflet-control-attribution {
+  filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%);
+}
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  @apply bg-[#121212] text-white shadow-2xl border border-white/10 rounded-2xl;
+}
+
+.leaflet-popup-content {
+  margin: 10px 12px;
+}
+
+.leaflet-control-attribution {
+  opacity: 0.55;
+  font-size: 10px;
+}
+
+/* Hide scrollbar for clean UI */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.fade-out-fast {
+  animation: fadeOutFast 0.8s ease-out 2.2s forwards;
+}
+
+@keyframes fadeOutFast {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
