@@ -12,6 +12,7 @@ export interface GuidanceStep {
   title: string;
   description: string;
   ctaLabel?: string;
+  clickTargetLabel?: string;
   targetId?: string;
   placement?: 'top' | 'bottom' | 'left' | 'right' | 'center';
   triggerAction: GuidanceAction;
@@ -37,6 +38,7 @@ export const GUIDANCE_STEPS: GuidanceStep[] = [
     title: 'Filter without noise',
     description: 'Use quick filters to show only nearby, verified, and fresh prices.',
     ctaLabel: 'Next tip',
+    clickTargetLabel: 'Filters',
     targetId: 'guidance-filters',
     placement: 'bottom',
     triggerAction: 'station_selected',
@@ -48,6 +50,7 @@ export const GUIDANCE_STEPS: GuidanceStep[] = [
     title: 'Keep prices fresh',
     description: 'Tap Report to submit updated fuel prices in a few seconds.',
     ctaLabel: 'Next tip',
+    clickTargetLabel: 'Report Price',
     targetId: 'guidance-report',
     placement: 'left',
     triggerAction: 'filters_opened',
@@ -59,6 +62,7 @@ export const GUIDANCE_STEPS: GuidanceStep[] = [
     title: 'Use station intelligence',
     description: 'Open Trend to view price history, reviews, and set alerts.',
     ctaLabel: 'Finish',
+    clickTargetLabel: 'Trend',
     targetId: 'guidance-trend',
     placement: 'top',
     triggerAction: 'report_opened',

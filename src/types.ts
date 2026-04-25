@@ -13,6 +13,24 @@ export interface Station {
   latest_image_url?: string | null;
   rating?: number;
   reviews_count?: number;
+  canonical_key?: string;
+  merged_into?: string | null;
+  verification_confidence?: number;
+  verification_breakdown?: {
+    report_consistency: number;
+    image_proof: number;
+    trusted_reporters: number;
+    recency_score?: number;
+    report_volume?: number;
+    community_confirmation?: number;
+  };
+  amenities?: {
+    shop?: boolean;
+    card_pay?: boolean;
+    safety_lights?: boolean;
+  };
+  queue_time_minutes?: number | null;
+  quality_index?: number;
 }
 
 export interface PriceReport {
@@ -22,6 +40,17 @@ export interface PriceReport {
   price: number;
   timestamp: number;
   reporter_uid: string;
+  reporter_reliability?: number;
+  outlier_rejected?: boolean;
+  community_confirmed?: boolean;
+  image_url?: string | null;
+  queue_time_minutes?: number | null;
+  amenities?: {
+    shop?: boolean;
+    card_pay?: boolean;
+    safety_lights?: boolean;
+  };
+  reporter_reputation?: number;
 }
 
 export interface Review {

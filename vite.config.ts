@@ -1,12 +1,10 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
-
+export default defineConfig(() => {
   return {
     plugins: [
       react(),
@@ -14,7 +12,7 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: false,
-        includeAssets: ['favicon.svg', 'apple-touch-icon.svg', 'masked-icon.svg'],
+        includeAssets: ['favicon.svg', 'apple-touch-icon.svg', 'masked-icon.svg', 'screenshot-mobile.svg', 'screenshot-desktop.svg'],
         manifest: {
           id: '/',
           name: 'TankUp - South Africa',
@@ -43,14 +41,14 @@ export default defineConfig(({mode}) => {
           ],
           screenshots: [
             {
-              src: 'screenshot-mobile.svg',
+              src: '/screenshot-mobile.svg',
               sizes: '1170x2532',
               type: 'image/svg+xml',
               form_factor: 'narrow',
               label: 'TankUp mobile live map and price board',
             },
             {
-              src: 'screenshot-desktop.svg',
+              src: '/screenshot-desktop.svg',
               sizes: '1728x1117',
               type: 'image/svg+xml',
               form_factor: 'wide',
@@ -129,12 +127,9 @@ export default defineConfig(({mode}) => {
         },
       }),
     ],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(__dirname, 'src'),
       },
     },
     server: {

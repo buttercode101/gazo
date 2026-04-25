@@ -73,7 +73,7 @@ export function GuidanceOverlay({ open, step, stepIndex, totalSteps, onNext, onS
 
   useEffect(() => {
     if (!open || !step?.targetId) return;
-    const target = document.getElementById(step.targetId);
+    const target = document.querySelector<HTMLElement>(`[data-guidance="${step.targetId}"]`);
     if (!target) return;
     target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
   }, [open, step]);
@@ -128,7 +128,6 @@ export function GuidanceOverlay({ open, step, stepIndex, totalSteps, onNext, onS
   }, [targetRect, step]);
 
   if (!open || !step) return null;
-  const tapHintTop = targetRect ? Math.max(8, targetRect.top - 28) : 8;
 
   return (
     <div className="fixed inset-0 z-[180] pointer-events-none" aria-live="polite">

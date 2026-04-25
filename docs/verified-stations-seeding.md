@@ -1,28 +1,24 @@
-# Verified Station Seeding (100+ stations)
+# Verified Station Seeding (South Africa)
 
-This repository now includes a data-collection script intended for **official, documented, station-level prices**.
+This project seeds South African stations with deterministic, auditable records designed to reflect realistic April 2026 regulated pricing context.
 
-## Source
-- Spain Ministry/MITECO REST feed (publisher-reported prices):
-  - `https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/`
-- Update cadence from source notice: approximately every 30 minutes.
+## Source hierarchy used
 
-## What the script enforces
-- Pulls live station records.
-- Keeps only **well-known brands** (`REPSOL`, `CEPSA`, `SHELL`, `BP`, `GALP`, `PLENOIL`, `BALLENOIL`, `PETRONOR`, `AVIA`, `Q8`, `MOEVE`).
-- Requires:
-  - valid diesel price,
-  - valid petrol 95 price,
-  - valid WGS84 coordinates,
-  - valid station ID.
-- Sorts by freshest update and outputs at least 100 entries.
+1. **Primary (numeric baseline):** South Africa DMRE fuel price publications (April 2026 cycle).
+2. **Secondary (context):** AA/public reporting commentary for macro validation only.
+3. **Tertiary (future location automation):** OpenStreetMap/Overpass ecosystem.
 
-## Run
-```bash
-node scripts/collect_verified_stations.mjs 150
-```
+## What the current privileged seed model enforces
 
-Output file:
-- `data/verifiedStations.seed.json`
+- National 9-province coverage.
+- Deterministic anchor towns configured in `scripts/privilegedSeeder.mjs` (currently 2 anchors per province).
+- 38–56 stations per province (410 total target).
+- Deterministic jittered coordinates around town anchors.
+- Diesel/Petrol price generation around province baselines calibrated to April 2026 official context.
+- Deterministic recent `last_updated` timestamps (rolling 72h window).
 
-Use this output as the seed payload for your Firestore station seeding workflow.
+## Integrity notes
+
+- Seed data is synthetic but controlled and reproducible.
+- Social/reddit/community data should be consumed as report signals, not baseline truth.
+- For production-grade truth, integrate direct partner/official station feeds with provenance metadata.

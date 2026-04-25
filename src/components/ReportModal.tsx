@@ -15,12 +15,21 @@ interface ReportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   station?: Station | null; 
-  onReport: (stationData: Partial<Station> | null, fuelTypes: ('diesel' | 'petrol')[], prices: { diesel?: number; petrol?: number }, file?: File | null) => Promise<void>;
+  onReport: (
+    stationData: Partial<Station> | null,
+    fuelTypes: ('diesel' | 'petrol')[],
+    prices: { diesel?: number; petrol?: number },
+    file?: File | null,
+    extras?: {
+      queue_time_minutes?: number | null;
+      amenities?: { shop?: boolean; card_pay?: boolean; safety_lights?: boolean };
+    }
+  ) => Promise<void>;
   userLocation: [number, number] | null;
-  communityDrivers: number;
+  communityReports24h: number;
 }
 
-export function ReportModal({ open, onOpenChange, station, onReport, userLocation, communityDrivers }: ReportModalProps) {
+export function ReportModal({ open, onOpenChange, station, onReport, userLocation, communityReports24h }: ReportModalProps) {
   const [reportType, setReportType] = useState<'diesel' | 'petrol' | 'both'>('diesel');
   const [dieselPrice, setDieselPrice] = useState('');
   const [petrolPrice, setPetrolPrice] = useState('');
@@ -30,6 +39,11 @@ export function ReportModal({ open, onOpenChange, station, onReport, userLocatio
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [queueTimeMinutes, setQueueTimeMinutes] = useState('');
+  const [amenities, setAmenities] = useState({ shop: false, card_pay: false, safety_lights: false });
+  const hasPinnedLocation = Boolean(station && Number.isFinite(station.lat) && Number.isFinite(station.lng));
+  const hasDetectedLocation = Boolean(userLocation && Number.isFinite(userLocation[0]) && Number.isFinite(userLocation[1]));
+  const canCreateStation = Boolean(station?.id) || hasPinnedLocation || hasDetectedLocation;
 
   useEffect(() => {
     if (open) {
@@ -41,6 +55,8 @@ export function ReportModal({ open, onOpenChange, station, onReport, userLocatio
       setPhotoPreview(null);
       setShowConfetti(false);
       setReportType('diesel');
+      setQueueTimeMinutes('');
+      setAmenities({ shop: false, card_pay: false, safety_lights: false });
     }
   }, [open]);
 
@@ -94,14 +110,24 @@ export function ReportModal({ open, onOpenChange, station, onReport, userLocatio
     
     let newStationData = null;
     if (!station) {
+      if (!hasDetectedLocation) {
+        toast.error('Location required to add a new station. Enable location or drop a pin.');
+        setLoading(false);
+        return;
+      }
       newStationData = {
         name: newStationName.trim() || "Community Station",
         address: newStationAddress.trim() || "Detected nearby",
-        lat: userLocation?.[0] || 0,
-        lng: userLocation?.[1] || 0,
+        lat: userLocation![0],
+        lng: userLocation![1],
       };
     } else if (!station.id) {
       // Manual long-press addition uses existing placeholder station but uses new inputs
+      if (!hasPinnedLocation) {
+        toast.error('Pinned station location is invalid. Please drop a pin again.');
+        setLoading(false);
+        return;
+      }
       newStationData = {
         name: newStationName.trim() || "New Station",
         address: newStationAddress.trim() || "Custom Location",
@@ -111,10 +137,13 @@ export function ReportModal({ open, onOpenChange, station, onReport, userLocatio
     }
 
     try {
-      await onReport(station?.id ? null : newStationData, fuelTypes, prices, photo);
+      await onReport(station?.id ? null : newStationData, fuelTypes, prices, photo, {
+        queue_time_minutes: queueTimeMinutes ? Number(queueTimeMinutes) : null,
+        amenities
+      });
       
       setShowConfetti(true);
-      toast.success(`Thank you! You just helped ${communityDrivers.toLocaleString()} drivers`, { duration: 4000 });
+      toast.success(`Thank you! ${communityReports24h.toLocaleString()} community reports were submitted in the last 24h.`, { duration: 4000 });
       
       setTimeout(() => {
         onOpenChange(false);
@@ -139,16 +168,26 @@ export function ReportModal({ open, onOpenChange, station, onReport, userLocatio
               Report Price
             </DialogTitle>
             <DialogDescription className="text-white/40 font-medium">
-              {station ? (
+              {station?.id ? (
                 <span className="flex items-center mt-2 text-white/80 bg-white/5 px-3 py-1.5 rounded-full w-fit">
                   <MapPin className="w-4 h-4 mr-2 text-[#FF6200]" />
                   {station.name}
                 </span>
+              ) : station ? (
+                <span className="flex items-center mt-2 text-[#FF6200] bg-[#FF6200]/10 px-3 py-1.5 rounded-full w-fit">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Create new station here
+                </span>
               ) : (
                 <span className="flex items-center mt-2 text-[#FF6200] bg-[#FF6200]/10 px-3 py-1.5 rounded-full w-fit animate-pulse">
                   <MapPin className="w-4 h-4 mr-2" />
-                  Auto-detecting nearest station...
+                  Auto-detect nearest station
                 </span>
+              )}
+              {!station?.id && (
+                <p className="text-xs text-white/50 mt-2">
+                  We check nearby stations first and will reuse an existing station when the match is strong.
+                </p>
               )}
             </DialogDescription>
           </DialogHeader>
@@ -233,6 +272,39 @@ export function ReportModal({ open, onOpenChange, station, onReport, userLocatio
                     </div>
                   </div>
                 )}
+
+                <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-sm font-bold uppercase tracking-wider text-white">Forecourt quality</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { key: 'shop', label: 'Shop' },
+                      { key: 'card_pay', label: 'Card Pay' },
+                      { key: 'safety_lights', label: 'Safety Lights' },
+                    ].map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setAmenities((prev) => ({ ...prev, [item.key]: !prev[item.key as keyof typeof prev] }))}
+                        className={`rounded-lg px-2 py-2 text-[11px] font-bold ${amenities[item.key as keyof typeof amenities] ? 'bg-emerald-500 text-[#042312]' : 'bg-white/10 text-white/70'}`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div>
+                    <Label className="text-xs font-bold text-white/70">Queue time (minutes)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={90}
+                      inputMode="numeric"
+                      placeholder="e.g. 8"
+                      value={queueTimeMinutes}
+                      onChange={(e) => setQueueTimeMinutes(e.target.value)}
+                      className="mt-1 bg-white/5 border-white/10"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Photo Upload area */}
@@ -270,7 +342,7 @@ export function ReportModal({ open, onOpenChange, station, onReport, userLocatio
               <Button 
                 type="submit" 
                 className="w-full h-16 text-lg font-black bg-white hover:bg-neutral-200 text-[#0A0A0A] rounded-2xl transition-all disabled:opacity-50 hover:scale-[1.02] active:scale-95 shadow-[0_10px_30px_rgba(255,255,255,0.1)]"
-                disabled={loading || (reportType === 'diesel' && !dieselPrice) || (reportType === 'petrol' && !petrolPrice) || (reportType === 'both' && (!dieselPrice || !petrolPrice))}
+                disabled={loading || !canCreateStation || (reportType === 'diesel' && !dieselPrice) || (reportType === 'petrol' && !petrolPrice) || (reportType === 'both' && (!dieselPrice || !petrolPrice))}
               >
                 {loading ? "PROCESSING..." : "VERIFY & SUBMIT"}
               </Button>

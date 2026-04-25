@@ -1,0 +1,22 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "price_reports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "station_id", "order": "ASCENDING" },
+        { "fieldPath": "fuel_type", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "station_id", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

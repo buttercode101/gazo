@@ -104,6 +104,49 @@
   animation: fadeOutFast 0.8s ease-out 2.2s forwards;
 }
 
+.bootloader-grid {
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(255, 98, 0, 0.12), transparent 38%),
+    radial-gradient(circle at 80% 10%, rgba(59, 130, 246, 0.12), transparent 30%),
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: auto, auto, 32px 32px, 32px 32px;
+  animation: bootGridShift 9s linear infinite;
+}
+
+.bootloader-shimmer {
+  background: linear-gradient(90deg, rgba(255,98,0,0.4), rgba(255,98,0,0.9), rgba(59,130,246,0.6));
+  background-size: 220% 100%;
+  animation: bootShimmer 1.25s ease-in-out infinite;
+}
+
+.bootloader-dots {
+  display: inline-block;
+  width: 1.2em;
+  overflow: hidden;
+  vertical-align: bottom;
+  animation: bootDots 1.4s steps(4, end) infinite;
+}
+
+.skeleton-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.16) 50%, transparent 65%);
+  transform: translateX(-100%);
+  animation: skeletonSweep 1.45s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.skeleton-block {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
 @keyframes fadeOutFast {
   from {
     opacity: 1;
@@ -111,4 +154,23 @@
   to {
     opacity: 0;
   }
+}
+
+@keyframes bootShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@keyframes bootGridShift {
+  0% { background-position: 0 0, 0 0, 0 0, 0 0; }
+  100% { background-position: -80px 40px, 90px -20px, 32px 16px, 16px 32px; }
+}
+
+@keyframes bootDots {
+  0% { width: 0; }
+  100% { width: 1.2em; }
+}
+
+@keyframes skeletonSweep {
+  100% { transform: translateX(100%); }
 }

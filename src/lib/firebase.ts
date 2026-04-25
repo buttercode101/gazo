@@ -87,6 +87,15 @@ service cloud.firestore {
         && (!('latest_image_url' in incoming()) || incoming().latest_image_url is string);
     }
 
+    match /report_rate_limits/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow create, update: if isSignedIn()
+        && request.auth.uid == uid
+        && incoming().last_report_at == request.time
+        && (!exists(/databases/$(database)/documents/report_rate_limits/$(uid))
+            || request.time >= existing().last_report_at + duration.value(5, 'm'));
+    }
+
     match /price_reports/{reportId} {
        allow read: if true;
        allow create: if isSignedIn()
@@ -95,7 +104,9 @@ service cloud.firestore {
          && incoming().station_id is string && incoming().station_id.size() <= 128
          && incoming().fuel_type in ['diesel', 'petrol']
          && incoming().price is number && incoming().price > 0 && incoming().price < 1000
-         && incoming().reporter_uid == request.auth.uid;
+         && incoming().reporter_uid == request.auth.uid
+         && exists(/databases/$(database)/documents/report_rate_limits/$(request.auth.uid))
+         && request.time >= get(/databases/$(database)/documents/report_rate_limits/$(request.auth.uid)).data.last_report_at;
     }
   }
 }

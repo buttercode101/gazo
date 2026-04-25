@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Station, PriceReport, Review } from '../types';
 import { X, Star, AlertCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { collection, query, where, orderBy, limit, getDocs, addDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, getDocs, addDoc, FirestoreError } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { format } from 'date-fns';
 import { Button } from './ui/button';
 import { triggerHaptic } from '../lib/seedData';
 import { toast } from 'sonner';
-import { getStationTrust } from '../lib/trust';
+import { getStationTrust, getTrustBreakdown } from '../lib/trust';
+import { getPricePrediction } from '../lib/prediction';
 
 interface StationDetailsModalProps {
   station: Station | null;
@@ -21,6 +22,8 @@ export function StationDetailsModal({ station, open, onClose, activeFuelType }: 
   const [history, setHistory] = useState<PriceReport[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
+  const [historyIndexError, setHistoryIndexError] = useState(false);
+  const [reviewsIndexError, setReviewsIndexError] = useState(false);
   const [targetPrice, setTargetPrice] = useState<string>('');
   const [hasAlert, setHasAlert] = useState(false);
   
@@ -40,6 +43,8 @@ export function StationDetailsModal({ station, open, onClose, activeFuelType }: 
   const fetchData = async () => {
     if (!station?.id) return;
     setLoading(true);
+    setHistoryIndexError(false);
+    setReviewsIndexError(false);
     try {
       // Fetch Reports
       const qReports = query(
@@ -65,6 +70,13 @@ export function StationDetailsModal({ station, open, onClose, activeFuelType }: 
       const revSnap = await getDocs(qReviews);
       setReviews(revSnap.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
     } catch (e) {
+      const error = e as FirestoreError;
+      const isMissingIndex = error.code === 'failed-precondition' && /index/i.test(error.message);
+      if (isMissingIndex) {
+        // Friendly fallback when composite index isn't ready yet.
+        setHistoryIndexError(true);
+        setReviewsIndexError(true);
+      }
       console.error(e);
     }
     setLoading(false);
@@ -136,6 +148,14 @@ export function StationDetailsModal({ station, open, onClose, activeFuelType }: 
 
   const currentPrice = activeFuelType === 'diesel' ? station.diesel_price : station.petrol_price;
   const trust = getStationTrust(station);
+  const trustBreakdown = getTrustBreakdown(station);
+  const pricePrediction = getPricePrediction(history);
+  const qualityAmenities = station.amenities || {};
+  const amenityList = [
+    { key: 'shop', label: 'Shop', active: Boolean(qualityAmenities.shop) },
+    { key: 'card_pay', label: 'Card Pay', active: Boolean(qualityAmenities.card_pay) },
+    { key: 'safety_lights', label: 'Safety Lights', active: Boolean(qualityAmenities.safety_lights) },
+  ];
 
   // Formatting chart data
   const chartData = history.map(h => ({
@@ -172,6 +192,47 @@ export function StationDetailsModal({ station, open, onClose, activeFuelType }: 
               <p className={`text-[10px] uppercase tracking-widest font-bold mt-1 ${trust.tier === 'high' ? 'text-emerald-400' : trust.tier === 'medium' ? 'text-amber-400' : 'text-red-400'}`}>
                 {trust.label} · {trust.score}
               </p>
+              <div className="group mt-2 rounded-xl border border-white/10 bg-white/5 p-2 relative">
+                <p className="text-[10px] uppercase tracking-widest text-white/45 font-bold">Trust breakdown ⓘ</p>
+                <div className="mt-1.5 space-y-1">
+                  {trustBreakdown.map((item) => (
+                    <p key={item.key} className="text-[11px] text-white/70">{item.label}: {item.value}</p>
+                  ))}
+                </div>
+                <div className="pointer-events-none absolute left-2 top-full z-20 mt-2 hidden w-56 rounded-lg border border-white/10 bg-[#0C111C] p-2 text-[10px] text-white/70 shadow-xl group-hover:block">
+                  Weighted trust model: recency + photo verification + report depth + community consistency.
+                </div>
+              </div>
+              <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-2">
+                <p className="text-[10px] uppercase tracking-widest text-white/45 font-bold">Forecourt quality index</p>
+                <p className="text-sm font-black mt-1 text-cyan-300">{station.quality_index ?? 0}/100</p>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {amenityList.map((item) => (
+                    <span key={item.key} className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${item.active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-white/45'}`}>{item.label}</span>
+                  ))}
+                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white/70">
+                    Queue {typeof station.queue_time_minutes === 'number' ? `${station.queue_time_minutes}m` : 'n/a'}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-2">
+                <p className="text-[10px] uppercase tracking-widest text-white/45 font-bold">24-72h price outlook</p>
+                {pricePrediction ? (
+                  <>
+                    <p className="text-[11px] text-white/80 mt-1">{pricePrediction.summary}</p>
+                    <p className={`text-[10px] mt-1 font-bold uppercase tracking-wider ${pricePrediction.direction === 'rise' ? 'text-red-300' : pricePrediction.direction === 'drop' ? 'text-emerald-300' : 'text-amber-300'}`}>
+                      Market outlook: {pricePrediction.direction === 'rise' ? 'Rising' : pricePrediction.direction === 'drop' ? 'Cooling' : 'Stable'}
+                    </p>
+                    <p className="text-[10px] text-white/60 mt-1">
+                      24h: {pricePrediction.change24h >= 0 ? '+' : ''}{pricePrediction.change24h.toFixed(2)} ·
+                      72h: {pricePrediction.change72h >= 0 ? '+' : ''}{pricePrediction.change72h.toFixed(2)} ·
+                      confidence {pricePrediction.confidence}%
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-white/60 mt-1">Not enough history yet to project direction.</p>
+                )}
+              </div>
             </div>
             {/* Alert Toggle */}
             <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 items-center">
@@ -197,6 +258,10 @@ export function StationDetailsModal({ station, open, onClose, activeFuelType }: 
             {!station.id ? (
               <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white/40 text-center px-4">
                 Price history available after first community report.
+              </div>
+            ) : historyIndexError ? (
+              <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white/40 text-center px-4">
+                Trend data is temporarily unavailable while indexes finish syncing. Please try again soon.
               </div>
             ) : loading ? (
               <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white/40">Loading history...</div>
@@ -229,7 +294,12 @@ export function StationDetailsModal({ station, open, onClose, activeFuelType }: 
 
           <p className="text-xs uppercase tracking-widest text-white/40 font-bold mb-4">Reviews & Notes</p>
           <div className="flex flex-col gap-3 mb-8">
-            {reviews.length === 0 ? (
+            {reviewsIndexError ? (
+               <div className="text-center py-6 bg-white/5 rounded-2xl border border-white/5">
+                 <p className="text-sm font-bold text-white/50">Reviews are temporarily unavailable</p>
+                 <p className="text-[10px] text-white/30 uppercase mt-1">Index setup in progress. Please try again shortly.</p>
+               </div>
+            ) : reviews.length === 0 ? (
                <div className="text-center py-6 bg-white/5 rounded-2xl border border-white/5">
                  <p className="text-sm font-bold text-white/50">No reviews yet</p>
                  <p className="text-[10px] text-white/30 uppercase mt-1">Be the first to review</p>

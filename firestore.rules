@@ -2,6 +2,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() { return request.auth != null; }
+    function isTrustedWriter() {
+      return isSignedIn()
+        && (
+          request.auth.token.admin == true
+          || request.auth.token.trusted == true
+          || request.auth.token.seed_writer == true
+          || request.auth.token.service_context == true
+        );
+    }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
@@ -22,13 +31,71 @@ service cloud.firestore {
 
       allow update: if isSignedIn()
         && isValidId(stationId)
-        && incoming().diff(existing()).affectedKeys().hasOnly(['diesel_price', 'petrol_price', 'last_updated', 'reports_count', 'last_reporter_uid', 'latest_image_url'])
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'diesel_price',
+          'petrol_price',
+          'last_updated',
+          'reports_count',
+          'last_reporter_uid',
+          'latest_image_url',
+          'verification_confidence',
+          'verification_breakdown',
+          'merged_into',
+          'canonical_key',
+          'queue_time_minutes',
+          'amenities',
+          'quality_index'
+        ])
         && (!('diesel_price' in incoming()) || incoming().diesel_price == null || (incoming().diesel_price is number && incoming().diesel_price >= 20 && incoming().diesel_price <= 29))
         && (!('petrol_price' in incoming()) || incoming().petrol_price == null || (incoming().petrol_price is number && incoming().petrol_price >= 20 && incoming().petrol_price <= 29))
         && incoming().last_updated is number
         && incoming().reports_count is number && incoming().reports_count >= existing().reports_count
         && (!('last_reporter_uid' in incoming()) || incoming().last_reporter_uid == request.auth.uid)
-        && (!('latest_image_url' in incoming()) || incoming().latest_image_url is string);
+        && (!('latest_image_url' in incoming()) || incoming().latest_image_url is string)
+        && (!('canonical_key' in incoming()) || incoming().canonical_key is string)
+        && (!('merged_into' in incoming()) || incoming().merged_into == null || incoming().merged_into is string)
+        && (!('queue_time_minutes' in incoming()) || incoming().queue_time_minutes == null || (incoming().queue_time_minutes is number && incoming().queue_time_minutes >= 0 && incoming().queue_time_minutes <= 90))
+        && (
+          !('amenities' in incoming())
+          || incoming().amenities == null
+          || (
+            incoming().amenities is map
+            && incoming().amenities.keys().hasOnly(['shop', 'card_pay', 'safety_lights'])
+            && (!('shop' in incoming().amenities) || incoming().amenities.shop is bool)
+            && (!('card_pay' in incoming().amenities) || incoming().amenities.card_pay is bool)
+            && (!('safety_lights' in incoming().amenities) || incoming().amenities.safety_lights is bool)
+          )
+        )
+        && (!('quality_index' in incoming()) || (incoming().quality_index is number && incoming().quality_index >= 0 && incoming().quality_index <= 100))
+        && (!('verification_confidence' in incoming()) || (incoming().verification_confidence is number && incoming().verification_confidence >= 0 && incoming().verification_confidence <= 100))
+        && (
+          !('verification_breakdown' in incoming())
+          || (
+            incoming().verification_breakdown is map
+            && incoming().verification_breakdown.report_consistency is number
+            && incoming().verification_breakdown.report_consistency >= 0
+            && incoming().verification_breakdown.report_consistency <= 100
+            && incoming().verification_breakdown.image_proof is number
+            && incoming().verification_breakdown.image_proof >= 0
+            && incoming().verification_breakdown.image_proof <= 100
+            && incoming().verification_breakdown.trusted_reporters is number
+            && incoming().verification_breakdown.trusted_reporters >= 0
+            && incoming().verification_breakdown.trusted_reporters <= 100
+          )
+        );
+    }
+
+    match /report_rate_limits/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow create, update: if isSignedIn()
+        && request.auth.uid == uid
+        && incoming().keys().hasOnly(['last_report_at', 'updated_at'])
+        && incoming().last_report_at == request.time
+        && (!('updated_at' in incoming()) || incoming().updated_at == request.time)
+        && (
+          !exists(/databases/$(database)/documents/report_rate_limits/$(uid))
+          || request.time >= existing().last_report_at + duration.value(5, 'm')
+        );
     }
 
     match /price_reports/{reportId} {
@@ -54,6 +121,59 @@ service cloud.firestore {
         && incoming().rating is number && incoming().rating >= 1 && incoming().rating <= 5
         && incoming().text is string && incoming().text.size() > 0 && incoming().text.size() <= 1000
         && incoming().timestamp is number;
+    }
+
+    match /_meta/seed_runs {
+      allow read: if false;
+      allow create, update: if isTrustedWriter()
+        && incoming().keys().hasOnly(['stationsSeedVersion', 'stationsSeededAt', 'stationsSeedCount', 'stationsSeedVersionHistory', 'activeLock', 'lastCompletedRunId', 'updatedAt'])
+        && (!('stationsSeedVersion' in incoming()) || (incoming().stationsSeedVersion is string && incoming().stationsSeedVersion.size() > 0 && incoming().stationsSeedVersion.size() <= 80))
+        && (!('stationsSeedCount' in incoming()) || (incoming().stationsSeedCount is number && incoming().stationsSeedCount >= 0 && incoming().stationsSeedCount <= 100000))
+        && (!('stationsSeedVersionHistory' in incoming()) || incoming().stationsSeedVersionHistory is list)
+        && (!('stationsSeededAt' in incoming()) || incoming().stationsSeededAt == request.time)
+        && (!('lastCompletedRunId' in incoming()) || incoming().lastCompletedRunId is string)
+        && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time)
+        && (
+          !('activeLock' in incoming())
+          || (
+            incoming().activeLock is map
+            && incoming().activeLock.runId is string
+            && incoming().activeLock.version is string
+            && (!('owner' in incoming().activeLock) || incoming().activeLock.owner is map || incoming().activeLock.owner == null)
+            && (!('acquiredAt' in incoming().activeLock) || incoming().activeLock.acquiredAt is timestamp)
+            && (!('expiresAt' in incoming().activeLock) || incoming().activeLock.expiresAt is timestamp)
+          )
+        );
+    }
+
+    match /_meta/seed_runs/versions/{versionId} {
+      allow read: if false;
+      allow create, update: if isTrustedWriter()
+        && versionId.size() <= 120
+        && (!('version' in incoming()) || (incoming().version is string && incoming().version.size() > 0))
+        && (!('stationCount' in incoming()) || (incoming().stationCount is number && incoming().stationCount >= 0 && incoming().stationCount <= 100000))
+        && (!('totalStations' in incoming()) || (incoming().totalStations is number && incoming().totalStations >= 0 && incoming().totalStations <= 100000))
+        && (!('cursor' in incoming()) || (incoming().cursor is number && incoming().cursor >= 0 && incoming().cursor <= 100000))
+        && (!('deterministicIds' in incoming()) || incoming().deterministicIds is bool)
+        && (!('runId' in incoming()) || incoming().runId is string)
+        && (!('status' in incoming()) || incoming().status in ['running', 'completed', 'failed'])
+        && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time)
+        && (!('completedAt' in incoming()) || incoming().completedAt == request.time);
+    }
+
+    match /_meta/seed_runs/runs/{runId} {
+      allow read: if false;
+      allow create, update: if isTrustedWriter()
+        && runId.size() <= 180
+        && (!('runId' in incoming()) || incoming().runId is string)
+        && (!('version' in incoming()) || incoming().version is string)
+        && (!('status' in incoming()) || incoming().status in ['running', 'completed', 'failed'])
+        && (!('cursor' in incoming()) || (incoming().cursor is number && incoming().cursor >= 0 && incoming().cursor <= 100000))
+        && (!('batchesCompleted' in incoming()) || (incoming().batchesCompleted is number && incoming().batchesCompleted >= 0 && incoming().batchesCompleted <= 10000))
+        && (!('stationCount' in incoming()) || (incoming().stationCount is number && incoming().stationCount >= 0 && incoming().stationCount <= 100000))
+        && (!('startedAt' in incoming()) || incoming().startedAt == request.time)
+        && (!('completedAt' in incoming()) || incoming().completedAt == request.time)
+        && (!('updatedAt' in incoming()) || incoming().updatedAt == request.time);
     }
   }
 }
